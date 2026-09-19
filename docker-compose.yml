@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sourveta-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./data/documents:/app/data/documents
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      HF_HOME: /root/.cache/huggingface
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: sourveta-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://backend:8000
+      WS_URL: ws://backend:8000/ws/chat
+    depends_on:
+      - backend

@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+.env.*
+*.log
+*.whl
+.pytest_cache/
+.mypy_cache/
+.vscode/
+.idea/
+data/chroma_db/
+data/documents/
+data/chunks/
+data/.ipynb_checkpoints/

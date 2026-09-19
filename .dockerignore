@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.git
+.gitignore
+.streamlit
+tests
+.ipynb_checkpoints
+*.ipynb
+.env
+.env.*
+.vscode
+.idea
+*.log

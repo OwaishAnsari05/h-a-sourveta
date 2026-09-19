@@ -1,0 +1,44 @@
+[
+    {
+        "question": "What was the total income in FY 2024-25?",
+        "expected_answer": "Standalone: ₹31,455.43 lakh; Consolidated: ₹37,569.16 lakh",
+        "expected_pages": [5],
+        "expected_sections": ["1. FINANCIAL RESULTS"]
+    },
+    {
+        "question": "What was the total expenditure in FY 2024-25?",
+        "expected_answer": "Standalone: ₹27,897.66 lakh",
+        "expected_pages": [5],
+        "expected_sections": ["1. FINANCIAL RESULTS"]
+    },
+    {
+        "question": "What was the cash and cash equivalents as of March 31, 2025?",
+        "expected_answer": "₹1,819.57 lakh",
+        "expected_pages": [151],
+        "expected_sections": ["4 Cash and cash equivalents"]
+    },
+    {
+        "question": "What was the bank balance other than cash and cash equivalents as of March 31, 2025?",
+        "expected_answer": "₹52.63 lakh",
+        "expected_pages": [151],
+        "expected_sections": ["5 Bank balance other than cash and cash equivalents above"]
+    },
+    {
+        "question": "What was the provision for standard assets as of March 31, 2025?",
+        "expected_answer": "₹1.07 lakh",
+        "expected_pages": [101],
+        "expected_sections": ["6 Provisions and Contingencies"]
+    },
+    {
+        "question": "Who are the joint venture partners?",
+        "expected_answer": "Tata Sons Private Limited and Tata Chemicals Limited",
+        "expected_pages": [101],
+        "expected_sections": ["1 Joint Venture Partners"]
+    },
+    {
+        "question": "What was the total exposure to the top five NPA accounts?",
+        "expected_answer": "Nil",
+        "expected_pages": [101],
+        "expected_sections": ["7 Concentration of NPAs"]
+    }
+]
