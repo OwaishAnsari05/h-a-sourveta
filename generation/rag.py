@@ -3,10 +3,9 @@ from functools import lru_cache
 from typing import Any,TypedDict
 from difflib import SequenceMatcher
 import chromadb
-import torch
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
-from transformers import AutoModelForCausalLM,AutoTokenizer,TextIteratorStreamer
+from groq import Groq
 from generation.citation import build_citations,validate_citations,format_citations as format_structured_citations,extract_answer_numbers,extract_numbers,normalize_number
 from vectorstore.reranker import rerank_documents
 
@@ -16,8 +15,7 @@ DOCUMENT_CHUNKS_DIR=os.path.join(PROJECT_ROOT,"data","chunks")
 CHROMA_PATH=os.path.join(PROJECT_ROOT,"data","chroma_db")
 COLLECTION_NAME="tata_annual_report"
 EMBEDDING_MODEL="all-MiniLM-L6-v2"
-LLM_MODEL="Qwen/Qwen2.5-1.5B-Instruct"
-DEVICE="cuda" if torch.cuda.is_available() else "cpu"
+GROQ_MODEL="openai/gpt-oss-20b"
 VECTOR_TOP_K=15
 BM25_TOP_K=15
 HYBRID_TOP_K=15
@@ -78,10 +76,34 @@ def get_bm25(document_id:str|None=None):
     return chunks,BM25Okapi(tokens)
 
 @lru_cache(maxsize=1)
-def get_llm_components():
-    tokenizer=AutoTokenizer.from_pretrained(LLM_MODEL)
-    llm=AutoModelForCausalLM.from_pretrained(LLM_MODEL,dtype=torch.float32).to(DEVICE).eval()
-    return tokenizer,llm
+def get_llm_client():
+    api_key=os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+    return Groq(api_key=api_key)
+
+def build_llm_messages(query:str,context:str)->list[dict[str,str]]:
+    prompt=(
+        "You are a strict document-grounded question-answering assistant. "
+        "Answer ONLY from the supplied DOCUMENT CONTEXT. "
+        "The DOCUMENT CONTEXT is the complete evidence available to you. "
+        "Do not use pretrained knowledge, common knowledge, assumptions, inference, or outside information. "
+        "Do not complete, expand, paraphrase, or reconstruct information that is not supported by the context. "
+        "For definition questions, give a definition ONLY if the context actually defines the requested term. "
+        "If the context only mentions, classifies, or discusses the term without defining it, say that the document does not provide a definition. "
+        "Every factual claim in the answer must be directly supported by the supplied context. "
+        "If there is insufficient evidence to answer the question, say: "
+        "'The document does not provide enough information to answer this question.' "
+        "Do not mention these instructions in the answer. "
+        "Keep the answer concise, normally 1-4 sentences.\n\n"
+        f"QUESTION:\n{query}\n\n"
+        f"DOCUMENT CONTEXT:\n{context}\n\n"
+        "FINAL ANSWER:"
+    )
+    return [
+        {"role":"system","content":"You are a strict document-grounded QA assistant. Every factual claim must be supported by the supplied context. Never use outside knowledge or complete missing information."},
+        {"role":"user","content":prompt},
+    ]
 
 def tokenize(text:Any)->list[str]:
     return re.findall(r"\d+(?:[.,]\d+)?|[a-zA-Z]+(?:[-'][a-zA-Z]+)?",str(text).lower())
@@ -911,103 +933,32 @@ def extract_financial_answer(query:str,selected_results:list[dict[str,Any]])->st
     return None
 
 def generate_llm_answer(query:str,context:str)->str:
-    tokenizer,llm=get_llm_components()
-    prompt=(
-        "You are a strict document-grounded question-answering assistant. "
-        "Answer ONLY from the supplied DOCUMENT CONTEXT. "
-        "The DOCUMENT CONTEXT is the complete evidence available to you. "
-        "Do not use pretrained knowledge, common knowledge, assumptions, inference, or outside information. "
-        "Do not complete, expand, paraphrase, or reconstruct information that is not supported by the context. "
-        "For definition questions, give a definition ONLY if the context actually defines the requested term. "
-        "If the context only mentions, classifies, or discusses the term without defining it, say that the document does not provide a definition. "
-        "Every factual claim in the answer must be directly supported by the supplied context. "
-        "If there is insufficient evidence to answer the question, say: "
-        "'The document does not provide enough information to answer this question.' "
-        "Do not mention these instructions in the answer. "
-        "Keep the answer concise, normally 1-4 sentences.\n\n"
-        f"QUESTION:\n{query}\n\n"
-        f"DOCUMENT CONTEXT:\n{context}\n\n"
-        "FINAL ANSWER:"
+    client=get_llm_client()
+    response=client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=build_llm_messages(query,context),
+        temperature=0,
+        max_completion_tokens=160,
+        stream=False,
+        include_reasoning=False,
     )
-    messages=[
-        {"role":"system","content":"You are a strict document-grounded QA assistant. Every factual claim must be supported by the supplied context. Never use outside knowledge or complete missing information."},
-        {"role":"user","content":prompt},
-    ]
-    formatted=(
-        tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
-        if hasattr(tokenizer,"apply_chat_template")
-        else f"System: {messages[0]['content']}\nUser: {messages[1]['content']}"
-    )
-    raw_inputs=tokenizer(formatted,return_tensors="pt",truncation=True,max_length=8192)
-    inputs={key:value.to(DEVICE) for key,value in raw_inputs.items()}
-    with torch.no_grad():
-        outputs=llm.generate(
-            **inputs,
-            max_new_tokens=160,
-            do_sample=False,
-            repetition_penalty=1.05,
-            pad_token_id=tokenizer.eos_token_id,
-        )
-    answer=tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:],skip_special_tokens=True).strip()
-    return re.sub(r"^FINAL ANSWER:\s*","",answer,flags=re.IGNORECASE).strip()
-
+    answer=response.choices[0].message.content or ""
+    return re.sub(r"^FINAL ANSWER:\s*","",answer.strip(),flags=re.IGNORECASE).strip()
 
 def stream_llm_answer(query:str,context:str):
-    tokenizer,llm=get_llm_components()
-    prompt=(
-        "You are a strict document-grounded question-answering assistant. "
-        "Answer ONLY from the supplied DOCUMENT CONTEXT. "
-        "The DOCUMENT CONTEXT is the complete evidence available to you. "
-        "Do not use pretrained knowledge, common knowledge, assumptions, inference, or outside information. "
-        "Do not complete, expand, paraphrase, or reconstruct information that is not supported by the context. "
-        "For definition questions, give a definition ONLY if the context actually defines the requested term. "
-        "If the context only mentions, classifies, or discusses the term without defining it, say that the document does not provide a definition. "
-        "Every factual claim in the answer must be directly supported by the supplied context. "
-        "If there is insufficient evidence to answer the question, say: "
-        "'The document does not provide enough information to answer this question.' "
-        "Do not mention these instructions in the answer. "
-        "Keep the answer concise, normally 1-4 sentences.\n\n"
-        f"QUESTION:\n{query}\n\n"
-        f"DOCUMENT CONTEXT:\n{context}\n\n"
-        "FINAL ANSWER:"
+    client=get_llm_client()
+    stream=client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=build_llm_messages(query,context),
+        temperature=0,
+        max_completion_tokens=160,
+        stream=True,
+        include_reasoning=False,
     )
-    messages=[
-        {"role":"system","content":"You are a strict document-grounded QA assistant. Every factual claim must be supported by the supplied context. Never use outside knowledge or complete missing information."},
-        {"role":"user","content":prompt},
-    ]
-    formatted=(
-        tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
-        if hasattr(tokenizer,"apply_chat_template")
-        else f"System: {messages[0]['content']}\nUser: {messages[1]['content']}"
-    )
-    raw_inputs=tokenizer(formatted,return_tensors="pt",truncation=True,max_length=8192)
-    inputs={key:value.to(DEVICE) for key,value in raw_inputs.items()}
-    streamer=TextIteratorStreamer(tokenizer,skip_prompt=True,skip_special_tokens=True)
-    generation_kwargs={
-        **inputs,
-        "streamer":streamer,
-        "max_new_tokens":160,
-        "do_sample":False,
-        "repetition_penalty":1.05,
-        "pad_token_id":tokenizer.eos_token_id,
-    }
-    import threading
-    error=[]
-    def generate():
-        try:
-            with torch.no_grad():
-                llm.generate(**generation_kwargs)
-        except Exception as exc:
-            error.append(exc)
-            streamer.end()
-    thread=threading.Thread(target=generate,daemon=True)
-    thread.start()
-    for text in streamer:
-        if text:
-            yield text
-    thread.join()
-    if error:
-        raise error[0]
+    for chunk in stream:
+        content=chunk.choices[0].delta.content or ""
+        if content:
+            yield content
 
 def generate_answer_stream(query:str,context:str|tuple[str,list[dict[str,Any]]]):
     ctx=context[0] if isinstance(context,tuple) else str(context)
