@@ -2,7 +2,6 @@ import json,os,re
 from functools import lru_cache
 from typing import Any,TypedDict
 from difflib import SequenceMatcher
-import chromadb
 from rank_bm25 import BM25Okapi
 from groq import Groq
 from generation.citation import build_citations,validate_citations,format_citations as format_structured_citations,extract_answer_numbers,extract_numbers,normalize_number
@@ -64,6 +63,7 @@ def get_embedding_model():
 
 @lru_cache(maxsize=1)
 def get_collection():
+    import chromadb
     return chromadb.PersistentClient(path=CHROMA_PATH).get_collection(name=COLLECTION_NAME)
 
 @lru_cache(maxsize=32)
