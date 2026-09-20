@@ -4,7 +4,6 @@ from typing import Any,TypedDict
 from difflib import SequenceMatcher
 import chromadb
 from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer
 from groq import Groq
 from generation.citation import build_citations,validate_citations,format_citations as format_structured_citations,extract_answer_numbers,extract_numbers,normalize_number
 from vectorstore.reranker import rerank_documents
@@ -60,6 +59,7 @@ def load_document_chunks(document_id:str):
 
 @lru_cache(maxsize=1)
 def get_embedding_model():
+    from sentence_transformers import SentenceTransformer
     return SentenceTransformer(EMBEDDING_MODEL)
 
 @lru_cache(maxsize=1)
