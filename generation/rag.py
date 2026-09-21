@@ -22,6 +22,8 @@ CONTEXT_TOP_K=5
 RRF_K=60
 VECTOR_WEIGHT=1.0
 BM25_WEIGHT=1.0
+LIGHTWEIGHT_RAG=os.getenv("LIGHTWEIGHT_RAG","0")=="1"
+
 
 STOPWORDS={
     "what","was","were","the","is","are","as","of","in","on","for",
@@ -363,6 +365,36 @@ def retrieve_evidence_rescue(query:str,chunks:list[dict[str,Any]],max_results:in
 
 def hybrid_retrieve(query:str,top_k:int=HYBRID_TOP_K,document_id:str|None=None)->list[dict[str,Any]]:
     print(" HYBRID: START ",flush=True)
+    chunks,bm25_index=get_bm25(document_id)
+    print(f" HYBRID: BM25 LOADED ({len(chunks)} CHUNKS) ",flush=True)
+
+    if LIGHTWEIGHT_RAG:
+        print(" HYBRID: LIGHTWEIGHT MODE ",flush=True)
+        print(" HYBRID: BM25 RETRIEVAL START ",flush=True)
+        bm25_results=retrieve_bm25(query,chunks,bm25_index,BM25_TOP_K)
+        print(f" HYBRID: BM25 RETRIEVAL END ({len(bm25_results)} RESULTS) ",flush=True)
+
+        print(" HYBRID: EVIDENCE RESCUE START ",flush=True)
+        rescued=retrieve_evidence_rescue(query,chunks,10)
+        print(f" HYBRID: EVIDENCE RESCUE END ({len(rescued)} RESULTS) ",flush=True)
+
+        merged=merge_result_records(bm25_results+rescued)
+
+        if document_id:
+            merged=[r for r in merged if get_document_id(r)==str(document_id)]
+
+        result=sorted(
+            merged,
+            key=lambda item:(
+                float(item.get("evidence_rescue_score",0.0))>0,
+                float(item.get("evidence_rescue_score",0.0)),
+                float(item.get("bm25_score",0.0)),
+            ),
+            reverse=True,
+        )[:top_k]
+
+        print(f" HYBRID: LIGHTWEIGHT FINISHED ({len(result)} RESULTS) ",flush=True)
+        return result
 
     print(" HYBRID: LOADING EMBEDDING MODEL ",flush=True)
     embed_model=get_embedding_model()
@@ -371,10 +403,6 @@ def hybrid_retrieve(query:str,top_k:int=HYBRID_TOP_K,document_id:str|None=None)-
     print(" HYBRID: LOADING CHROMA COLLECTION ",flush=True)
     collection=get_collection()
     print(" HYBRID: CHROMA COLLECTION LOADED ",flush=True)
-
-    print(" HYBRID: LOADING BM25 ",flush=True)
-    chunks,bm25_index=get_bm25(document_id)
-    print(f" HYBRID: BM25 LOADED ({len(chunks)} CHUNKS) ",flush=True)
 
     print(" HYBRID: VECTOR RETRIEVAL START ",flush=True)
     vector_results=retrieve_vector(query,collection,embed_model,VECTOR_TOP_K,document_id)
@@ -408,7 +436,6 @@ def hybrid_retrieve(query:str,top_k:int=HYBRID_TOP_K,document_id:str|None=None)-
     )[:top_k]
 
     print(f" HYBRID: FINISHED ({len(result)} RESULTS) ",flush=True)
-
     return result
 
 def add_lexical_scores(results:list[dict[str,Any]],query:str)->list[dict[str,Any]]:
@@ -1148,7 +1175,10 @@ def ask_question(query:str,document_id:str|None=None)->tuple[str,list[dict[str,A
     candidates=hybrid_retrieve(query,HYBRID_TOP_K,document_id=document_id)
     if not candidates:
         return REFUSAL,[]
-    reranked=rerank_candidates(query,candidates,RERANK_TOP_K)
+    if LIGHTWEIGHT_RAG:
+        reranked=candidates[:RERANK_TOP_K]
+    else:
+        reranked=rerank_candidates(query,candidates,RERANK_TOP_K)
     protected=protect_exact_matches(query,reranked,candidates=candidates,top_k=RERANK_TOP_K)
     if document_id:
         protected=[r for r in protected if get_document_id(r)==str(document_id)]
