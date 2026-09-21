@@ -357,17 +357,42 @@ def retrieve_evidence_rescue(query:str,chunks:list[dict[str,Any]],max_results:in
     return sorted(rescued,key=lambda item:item["evidence_rescue_score"],reverse=True)[:max_results]
 
 def hybrid_retrieve(query:str,top_k:int=HYBRID_TOP_K,document_id:str|None=None)->list[dict[str,Any]]:
+    print(" HYBRID: START ",flush=True)
+
+    print(" HYBRID: LOADING EMBEDDING MODEL ",flush=True)
     embed_model=get_embedding_model()
+    print(" HYBRID: EMBEDDING MODEL LOADED ",flush=True)
+
+    print(" HYBRID: LOADING CHROMA COLLECTION ",flush=True)
     collection=get_collection()
+    print(" HYBRID: CHROMA COLLECTION LOADED ",flush=True)
+
+    print(" HYBRID: LOADING BM25 ",flush=True)
     chunks,bm25_index=get_bm25(document_id)
+    print(f" HYBRID: BM25 LOADED ({len(chunks)} CHUNKS) ",flush=True)
+
+    print(" HYBRID: VECTOR RETRIEVAL START ",flush=True)
     vector_results=retrieve_vector(query,collection,embed_model,VECTOR_TOP_K,document_id)
+    print(f" HYBRID: VECTOR RETRIEVAL END ({len(vector_results)} RESULTS) ",flush=True)
+
+    print(" HYBRID: BM25 RETRIEVAL START ",flush=True)
     bm25_results=retrieve_bm25(query,chunks,bm25_index,BM25_TOP_K)
+    print(f" HYBRID: BM25 RETRIEVAL END ({len(bm25_results)} RESULTS) ",flush=True)
+
+    print(" HYBRID: RRF START ",flush=True)
     fused=reciprocal_rank_fusion(vector_results,bm25_results,top_k)
+    print(f" HYBRID: RRF END ({len(fused)} RESULTS) ",flush=True)
+
+    print(" HYBRID: EVIDENCE RESCUE START ",flush=True)
     rescued=retrieve_evidence_rescue(query,chunks,10)
+    print(f" HYBRID: EVIDENCE RESCUE END ({len(rescued)} RESULTS) ",flush=True)
+
     merged=merge_result_records(fused+rescued)
+
     if document_id:
         merged=[r for r in merged if get_document_id(r)==str(document_id)]
-    return sorted(
+
+    result=sorted(
         merged,
         key=lambda item:(
             float(item.get("evidence_rescue_score",0.0))>0,
@@ -376,6 +401,10 @@ def hybrid_retrieve(query:str,top_k:int=HYBRID_TOP_K,document_id:str|None=None)-
         ),
         reverse=True,
     )[:top_k]
+
+    print(f" HYBRID: FINISHED ({len(result)} RESULTS) ",flush=True)
+
+    return result
 
 def add_lexical_scores(results:list[dict[str,Any]],query:str)->list[dict[str,Any]]:
     target=query_target_metadata(query)
