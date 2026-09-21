@@ -58,8 +58,13 @@ def load_document_chunks(document_id:str):
 
 @lru_cache(maxsize=1)
 def get_embedding_model():
+    print("EMBEDDING: IMPORT START",flush=True)
     from sentence_transformers import SentenceTransformer
-    return SentenceTransformer(EMBEDDING_MODEL)
+    print("EMBEDDING: IMPORT DONE",flush=True)
+    print(f"EMBEDDING: LOADING {EMBEDDING_MODEL}",flush=True)
+    model=SentenceTransformer(EMBEDDING_MODEL)
+    print("EMBEDDING: MODEL LOADED",flush=True)
+    return model
 
 @lru_cache(maxsize=1)
 def get_collection():
