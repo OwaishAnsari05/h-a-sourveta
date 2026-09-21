@@ -1,8 +1,13 @@
 from api.services.memory import get_history,add_exchange
 
 def agent_rag_service(query:str,document_id:str|None=None,conversation_id:str|None=None):
+    print("==== CHAT REQUEST RECEIVED =====",flush=True)
+    print(f"QUERY: {query}",flush=True)
+
     from generation.rag import serialize_sources
     from agents.graph import agent_graph
+
+    print("===== INVOKING AGENT GRAPH ====",flush=True)
 
     history=get_history(conversation_id)
 
@@ -13,11 +18,15 @@ def agent_rag_service(query:str,document_id:str|None=None,conversation_id:str|No
         "chat_history":history,
     })
 
+    print("=== AGENT GRAPH FINISHED ===",flush=True)
+
     results=state.get("results",[])
     answer=state.get("answer","")
 
     if conversation_id and answer:
         add_exchange(conversation_id,query,answer)
+
+    print("== CHAT RESPONSE READY ==",flush=True)
 
     return {
         "answer":answer,
