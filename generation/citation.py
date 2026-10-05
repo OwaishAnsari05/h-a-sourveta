@@ -93,8 +93,6 @@ def extract_answer_phrases(answer: str) -> List[str]:
 
 
 KNOWN_ENTITIES = [
-    "tata sons private limited",
-    "tata chemicals limited",
     "cash and cash equivalents",
     "bank balance other than cash and cash equivalents",
     "provision for standard assets",
@@ -433,70 +431,3 @@ def citations_to_dicts(
         }
         for citation in citations
     ]
-
-
-if __name__ == "__main__":
-    results = [
-        {
-            "text": "1. Joint Venture Partners\nThe joint venture partners are Tata Sons Private Limited and Tata Chemicals Limited.",
-            "metadata": {
-                "chunk_id": "tata_annual_report_2024_25_p101_s1_c1",
-                "document_id": "tata_annual_report_2024_25",
-                "source": "tata_annual_report_2024_25.pdf",
-                "page_number": 101,
-                "section": "1. Joint Venture Partners",
-                "section_index": 1,
-                "chunk_index": 1,
-            },
-        },
-        {
-            "text": "As at March 31, 2025, the balance was reported.",
-            "metadata": {
-                "chunk_id": "tata_annual_report_2024_25_p151_date_c1",
-                "document_id": "tata_annual_report_2024_25",
-                "source": "tata_annual_report_2024_25.pdf",
-                "page_number": 151,
-                "section": "Notes",
-                "section_index": 2,
-                "chunk_index": 1,
-            },
-        },
-    ]
-
-    query = "Who are the joint venture partners?"
-    answer = "The joint venture partners are Tata Sons Private Limited and Tata Chemicals Limited."
-
-    citations = build_citations(answer=query if False else answer,query=query,results=results)
-    valid,errors = validate_citations(citations,results)
-
-    print("=" * 80)
-    print("CITATION TEST")
-    print("=" * 80)
-
-    for citation in citations:
-        print(f"{citation.citation_id} | Page {citation.page_number} | Score {citation.support_score:.3f}")
-        print(f"Chunk: {citation.chunk_id}")
-        print(f"Evidence: {citation.evidence}")
-        print("-" * 80)
-
-    print()
-    print("=" * 80)
-    print("VALIDATION")
-    print("=" * 80)
-    print(f"Valid: {valid}")
-
-    if errors:
-        for error in errors:
-            print(error)
-    else:
-        print("No validation errors.")
-
-    print()
-    print("=" * 80)
-    print("EXPECTED")
-    print("=" * 80)
-    print("C1 -> Page 101")
-    print("Evidence should contain both:")
-    print("     Tata Sons Private Limited")
-    print("     Tata Chemicals Limited")
-    print("Date-only chunks -> NOT CITED")

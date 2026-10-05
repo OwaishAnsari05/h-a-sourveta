@@ -1,3 +1,4 @@
+import os
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 import json
@@ -10,7 +11,7 @@ if str(ROOT) not in sys.path:
 
 from generation.rag import hybrid_retrieve,build_context,generate_answer,validate_answer_grounding
 
-QUESTIONS_FILE=ROOT/"data"/"evaluation_questions.json"
+QUESTIONS_FILE=Path(os.getenv("SOURVETA_EVALUATION_FILE",str(ROOT/"evaluation"/"benchmarks"/"tata_annual_report_2024_25.json")))
 RETRIEVAL_TOP_K=15
 CONTEXT_TOP_K=5
 

@@ -25,41 +25,32 @@ def _save(data):
         json.dump(data,f,ensure_ascii=False,indent=2)
     os.replace(temp_path,STATUS_PATH)
 
-def create_status(document_id,filename):
+def create_status(document_id,filename,sha256=None,size_bytes=0,storage_filename=None):
     with _lock:
         data=_load()
         now=datetime.now(timezone.utc).isoformat()
-        data[document_id]={
-            "document_id":document_id,
-            "filename":filename,
-            "status":"processing",
-            "page_count":0,
-            "chunk_count":0,
-            "error":None,
-            "created_at":now,
-            "updated_at":now,
-        }
+        data[document_id]={"document_id":document_id,"filename":filename,"storage_filename":storage_filename or "","sha256":sha256,"size_bytes":int(size_bytes or 0),"status":"processing","page_count":0,"chunk_count":0,"error":None,"created_at":now,"updated_at":now}
         _save(data)
         return data[document_id]
+
+def find_by_sha256(sha256):
+    if not sha256:
+        return None
+    with _lock:
+        for item in _load().values():
+            if item.get("sha256")==sha256:
+                return item
+    return None
 
 def update_status(document_id,status,page_count=None,chunk_count=None,error=None):
     with _lock:
         data=_load()
         item=data.get(document_id)
         if item is None:
-            item={
-                "document_id":document_id,
-                "filename":"",
-                "status":"processing",
-                "page_count":0,
-                "chunk_count":0,
-                "error":None,
-            }
+            item={"document_id":document_id,"filename":"","storage_filename":"","sha256":None,"size_bytes":0,"status":"processing","page_count":0,"chunk_count":0,"error":None,"created_at":datetime.now(timezone.utc).isoformat()}
         item["status"]=status
-        if page_count is not None:
-            item["page_count"]=page_count
-        if chunk_count is not None:
-            item["chunk_count"]=chunk_count
+        if page_count is not None: item["page_count"]=page_count
+        if chunk_count is not None: item["chunk_count"]=chunk_count
         item["error"]=error
         item["updated_at"]=datetime.now(timezone.utc).isoformat()
         data[document_id]=item
@@ -73,3 +64,10 @@ def get_status(document_id):
 def list_statuses():
     with _lock:
         return list(_load().values())
+
+def delete_status(document_id):
+    with _lock:
+        data=_load()
+        removed=data.pop(document_id,None)
+        _save(data)
+        return removed

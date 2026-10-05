@@ -8,7 +8,7 @@ if PROJECT_ROOT not in sys.path:
 
 from generation.rag import hybrid_retrieve, retrieve_bm25, retrieve_vector
 
-EVALUATION_FILE = "data/evaluation_questions.json"
+EVALUATION_FILE = os.getenv("SOURVETA_EVALUATION_FILE",os.path.join(PROJECT_ROOT,"evaluation","benchmarks","tata_annual_report_2024_25.json"))
 TOP_K = 10
 
 with open(EVALUATION_FILE, "r", encoding="utf-8") as f:

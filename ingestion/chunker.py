@@ -2,12 +2,12 @@ import json
 import os
 import re
 from ingestion.pdf_parser import parse_pdf
+from ingestion.language import detect_language,normalize_unicode
 
 CHUNKS_DIR = "data/chunks"
 MAX_CHARS = 1800
 OVERLAP_CHARS = 300
 OUTPUT_PATH = "data/chunks.json"
-IMPORTANT_PAGES = {5,101,151}
 
 TABLE_LABELS = {
     "particulars","standalone","consolidated","fy 2024-25","fy 2023-24",
@@ -151,6 +151,12 @@ def create_section_chunks(pages,max_chars=MAX_CHARS,overlap_chars=OVERLAP_CHARS)
         document_id = page["document_id"]
         source = page["source"]
         sections = extract_sections(page["text"])
+        page_language=page.get("language") or detect_language(page["text"])
+        page_extraction_method=page.get("extraction_method","pymupdf")
+        page_ocr_used=bool(page.get("ocr_used",False))
+        page_denoised=bool(page.get("denoised",False))
+        page_ocr_confidence=page.get("ocr_confidence")
+        page_denoising_model=page.get("denoising_model")
         section_counter = 0
         for section in sections:
             section_name = section["section"]
@@ -169,6 +175,12 @@ def create_section_chunks(pages,max_chars=MAX_CHARS,overlap_chars=OVERLAP_CHARS)
                     "section":section_name,
                     "section_index":section_counter,
                     "chunk_index":chunk_index,
+                    "language":page_language,
+                    "extraction_method":page_extraction_method,
+                    "ocr_used":page_ocr_used,
+                    "denoised":page_denoised,
+                    "ocr_confidence":page_ocr_confidence,
+                    "denoising_model":page_denoising_model,
                     "text":chunk_text,
                 })
     return all_chunks
@@ -209,8 +221,6 @@ def inspect_chunks(chunks):
     print("SAMPLE SECTION-AWARE CHUNKS")
     print("=" * 70)
     for chunk in chunks:
-        if chunk["page_number"] not in IMPORTANT_PAGES:
-            continue
         print("\n" + "-" * 70)
         print("CHUNK ID:     ",chunk["chunk_id"])
         print("PAGE:         ",chunk["page_number"])
@@ -221,12 +231,12 @@ def inspect_chunks(chunks):
         print(chunk["text"][:1800])
 
 if __name__ == "__main__":
-    pdf_path = "data/documents/Tata_annual_report.pdf"
-    document_id = "tata_annual_report_2024_25"
+    pdf_path = "data/documents/example.pdf"
+    document_id = "example_document"
     pages,chunks = build_document_chunks(
         pdf_path,
         document_id=document_id,
-        source="Tata_annual_report.pdf",
+        source="example.pdf",
     )
     print(f"Total pages processed: {len(pages)}")
     print(f"Total section-aware chunks: {len(chunks)}")

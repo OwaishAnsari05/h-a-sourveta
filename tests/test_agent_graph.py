@@ -1,10 +1,7 @@
-from agents.graph import agent_graph
+from agents.router import route_query
 
-query="What happened to the companys total income between FY 2023-24 and FY 2024-25?"
-result=agent_graph.invoke({"query":query,"document_id":"tata_annual_report_2024_25"})
-print("INTENT:",result.get("intent"))
-print("ROUTE:",result.get("route"))
-print("ANSWER:",result.get("answer"))
-print("VALIDATED:",result.get("validated"))
-print("ERRORS:",result.get("validation_errors"))
-print("CITATIONS:",result.get("citations"))
+def test_calculation_routes_to_calculator():
+    assert route_query({"query":"calculate 12 + 8","intent":""})=="calculator"
+
+def test_document_question_routes_to_retrieval():
+    assert route_query({"query":"What does the document say about safety?","intent":""})=="retrieval"

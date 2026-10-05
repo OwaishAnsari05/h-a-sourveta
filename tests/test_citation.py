@@ -16,14 +16,14 @@ from generation.citation import build_citations, validate_citations
 # ============================================================
 
 def make_result(text, page_number, section, section_index, chunk_index):
-    chunk_id = f"tata_annual_report_2024_25_p{page_number}_s{section_index}_c{chunk_index}"
+    chunk_id = f"benchmark_document_p{page_number}_s{section_index}_c{chunk_index}"
     return {
         "id": chunk_id,
         "document": text,
         "metadata": {
             "chunk_id": chunk_id,
-            "document_id": "tata_annual_report_2024_25",
-            "source": "Tata Annual Report 2024-25",
+            "document_id": "benchmark_document",
+            "source": "Sample Annual Report",
             "page_number": page_number,
             "section": section,
             "section_index": section_index,
@@ -90,15 +90,15 @@ def test_bank_balance_citation():
 
 def test_joint_venture_citation():
     result = make_result(
-        "Joint Venture Partners: Tata Sons Private Limited and Tata Chemicals Limited",
+        "Joint Venture Partners: Alpha Holdings and Beta Industries",
         101, "Joint Venture Partners", 1, 1
     )
-    answer = "The joint venture partners are Tata Sons Private Limited and Tata Chemicals Limited."
+    answer = "The joint venture partners are Alpha Holdings and Beta Industries."
     citations = build_citations(query="Who are the joint venture partners?", answer=answer, results=[result])
 
     assert len(citations) == 1
     assert citations[0].page_number == 101
-    assert "Tata Sons Private Limited" in citations[0].evidence
+    assert "Alpha Holdings" in citations[0].evidence
 
 
 def test_provision_citation():

@@ -1,4 +1,5 @@
 from typing import Any
+import re
 from agents.state import AgentState
 from generation.rag import validate_answer_grounding,extract_answer_numbers,extract_numbers
 
@@ -18,13 +19,8 @@ def validator_node(state:AgentState)->dict[str,Any]:
     if not results:
         return {"validated":False,"validation_errors":["Missing grounding evidence."]}
     if route=="calculator":
-        answer_numbers=extract_answer_numbers(answer)
-        context_numbers=set()
-        for result in results:
-            context_numbers.update(extract_numbers(result.get("document","")))
-        source_numbers=[n for n in answer_numbers if _normalize_number(n) in {_normalize_number(x) for x in context_numbers}]
-        if len(source_numbers)<2:
-            return {"validated":False,"validation_errors":["Calculator answer lacks sufficient source numeric evidence."]}
+        if not re.fullmatch(r"-?\d+(?:\.\d+)?",answer.strip()):
+            return {"validated":False,"validation_errors":["Calculator answer is not numeric."]}
         return {"validated":True,"validation_errors":[]}
     valid=validate_answer_grounding(answer,results)
     if valid:

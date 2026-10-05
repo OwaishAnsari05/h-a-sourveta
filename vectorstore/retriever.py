@@ -1,12 +1,11 @@
 import chromadb
-from sentence_transformers import SentenceTransformer
-
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "intfloat/multilingual-e5-base"
 CHROMA_PATH = "data/chroma_db"
-COLLECTION_NAME = "tata_annual_report"
+COLLECTION_NAME = "sourveta_multilingual"
 
 def get_embedding_model(model_name=EMBEDDING_MODEL):
-    return SentenceTransformer(model_name)
+    from vectorstore.embeddings import get_embedding_model as load_embedding_model
+    return load_embedding_model(model_name)
 
 def get_collection(chroma_path=CHROMA_PATH,collection_name=COLLECTION_NAME):
     client = chromadb.PersistentClient(path=chroma_path)
@@ -19,7 +18,8 @@ def retrieve_documents(query,top_k=5,model=None,collection=None,document_id=None
         model = get_embedding_model()
     if collection is None:
         collection = get_collection()
-    query_embedding = model.encode(query).tolist()
+    from vectorstore.embeddings import encode_query
+    query_embedding = encode_query(model,query).tolist()
     query_kwargs = {
         "query_embeddings":[query_embedding],
         "n_results":top_k,

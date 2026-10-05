@@ -1,10 +1,16 @@
 from agents.nodes.calculator import calculator_node
-from agents.nodes.retrieval import retrieval_node
 
-query="What happened to the companys total income between FY 2023-24 and FY 2024-25?"
-state={"query":query,"document_id":"tata_annual_report_2024_25"}
-state.update(retrieval_node(state))
-result=calculator_node(state)
+def test_addition():
+    result=calculator_node({"query":"calculate 12 + 8"})
+    assert result["error"] is None
+    assert result["answer"]=="20"
 
-print("ANSWER:",result.get("answer"))
-print("ERROR:",result.get("error"))
+def test_expression_precedence():
+    result=calculator_node({"query":"compute 10 + 5 * 2"})
+    assert result["error"] is None
+    assert result["answer"]=="20"
+
+def test_division_by_zero():
+    result=calculator_node({"query":"calculate 10 / 0"})
+    assert result["answer"]==""
+    assert result["error"]

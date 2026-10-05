@@ -1,7 +1,16 @@
 from fastapi import FastAPI,Request
+from fastapi.middleware.cors import CORSMiddleware
+from api.config import get_allowed_origins
+from api.middleware import SecurityHeadersMiddleware
 from api.routes import chat,documents,health,websocket
 
-app=FastAPI(title="Tata Annual Report RAG API",version="1.0.0")
+app=FastAPI(title="SOURVETA Document Intelligence API",version="1.0.0")
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CORSMiddleware,allow_origins=get_allowed_origins(),allow_credentials=False,allow_methods=["GET","POST","DELETE","OPTIONS"],allow_headers=["*"])
+
+@app.get("/")
+def root():
+    return {"service":"SOURVETA Document Intelligence API","status":"healthy","docs":"/docs","health":"/health"}
 
 @app.get("/debug")
 def debug():

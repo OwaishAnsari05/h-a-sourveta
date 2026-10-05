@@ -1,7 +1,7 @@
 import re
 from functools import lru_cache
 
-RERANKER_MODEL="cross-encoder/ms-marco-MiniLM-L-6-v2"
+RERANKER_MODEL="BAAI/bge-reranker-v2-m3"
 
 @lru_cache(maxsize=1)
 def get_reranker():
@@ -46,11 +46,6 @@ def lexical_score(query,result):
         "total expenditure":10.0,
     }
     score=sum(weight for phrase,weight in exact_phrases.items() if phrase in q and phrase in searchable)
-    if "joint venture" in q or "venture partners" in q:
-        if "tata sons private limited" in searchable:
-            score+=10.0
-        if "tata chemicals limited" in searchable:
-            score+=10.0
     return score
 
 def rerank_documents(query,results,top_k=10):

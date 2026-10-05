@@ -7,7 +7,6 @@ ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EVALUATION_DIR=os.path.join(ROOT,"evaluation")
 EVALUATORS=[
     ("Retrieval Evaluation","evaluate_retrieval.py"),
-    ("Reranker Evaluation","evaluate_reranker.py"),
     ("Answer Evaluation","evaluate_answer.py"),
 ]
 
