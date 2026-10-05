@@ -19,7 +19,6 @@ COPY evaluation ./evaluation
 COPY generation ./generation
 COPY ingestion ./ingestion
 COPY vectorstore ./vectorstore
-COPY run_loader.py .
 RUN mkdir -p data/documents data/chroma_db data/chunks
 
 EXPOSE 8000
